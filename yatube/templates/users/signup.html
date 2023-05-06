@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+<title>{% block title %}Зарегистрироваться{% endblock %}</title>
+{% block content %}
+{% load user_filters %}
+{% with card_header='Зарегистрироваться' %}
+  {% include 'users/includes/form.html' %} 
+{% endwith %}
+<p>
+  <div class="row justify-content-center">
+    <div class="col-md-6 offset-md-4">
+      <button type="submit" class="btn btn-primary">
+        Зарегистрироваться
+      </button>
+    </div>
+  </div>
+</p>
+{% endblock %}

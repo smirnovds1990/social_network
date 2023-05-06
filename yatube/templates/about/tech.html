@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Технологии{% endblock %}
+{% block content %}
+{% load static %}
+<div class="row">
+  <h3>Вот что я умею</h3>
+  <aside class="col-12 col-md-3">
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        <img height="50px" wigth="50px" src="{% static 'img/python.png' %}">
+        Python
+      </li>
+      <li class="list-group-item">
+        <img height="50px" wigth="50px" src="{% static 'img/html.png' %}">
+        HTML
+      </li>
+      <li class="list-group-item">
+        <img height="50px" wigth="50px" src="{% static 'img/SQL.png' %}">
+        SQL
+      </li>
+      <li class="list-group-item">
+        <img height="50px" wigth="50px" src="{% static 'img/django.png' %}">
+        Django
+      </li>
+    </ul>
+  </aside>
+  <article class="col-12 col-md-9">
+    <p>На этой странице представлены технологии, которыми я владею (хотелось бы так думать). Все они применены при создании этого проекта. Не могу сказать, что хоть в чём-то я хорошо разобрался. А больше всего мне помог навык гуглить. <img height="20px" wigth="20px" src="{% static 'img/smile.png' %}"></p>
+  </article>
+</div>
+{% endblock %}

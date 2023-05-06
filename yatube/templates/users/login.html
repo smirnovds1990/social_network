@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Войти{% endblock %}
+{% block content %}
+{% load user_filters %}
+  {% with card_header='Войти на сайт' %}
+    {% include 'users/includes/form.html' %} 
+  {% endwith %}
+  <p>
+    <div class="row justify-content-center">
+      <div class="col-md-6 offset-md-4">
+        <button type="submit" class="btn btn-primary">
+          Войти
+        </button>
+        <a href="{% url 'users:password_reset_done' %}"
+        class="btn btn-link"
+        >
+          Забыли пароль?
+        </a>
+      </div>
+    </div>
+  </p>
+{% endblock %}
