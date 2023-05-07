@@ -74,6 +74,7 @@ class URLTests(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
+        cache.clear()
 
     def test_reverses(self):
         """Тестирование реверсов."""

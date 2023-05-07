@@ -14,10 +14,10 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    if sys.argv[1] == 'test':
-        from django.test import TestCase
-        from django.core.cache import cache
-        TestCase.tearDown = cache.clear
+    # if sys.argv[1] == 'test':
+    #     from django.test import TestCase
+    #     from django.core.cache import cache
+    #     TestCase.tearDown = cache.clear
     execute_from_command_line(sys.argv)
 
 
