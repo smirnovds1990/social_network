@@ -264,6 +264,9 @@ class ImageTest(TestCase):
             ),
         }
 
+    def setUp(self):
+        cache.clear()
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
