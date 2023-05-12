@@ -120,24 +120,3 @@ class URLTests(TestCase):
             response,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
-
-    def test_comments_allowed_only_authorized_clients(self):
-        """
-        Проверка возможности комментирования только авторизированным
-        пользователям
-        """
-        form_data = {
-            'text': 'Текст тестового комментария.',
-        }
-        authorized_response = self.authorized_client.post(
-            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
-            data=form_data,
-            follow=True
-        )
-        anonym_response = self.client.post(
-            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
-            data=form_data,
-            follow=True
-        )
-        self.assertContains(authorized_response, form_data['text'])
-        self.assertNotContains(anonym_response, form_data['text'])

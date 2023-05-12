@@ -10,7 +10,7 @@ from django.core.paginator import Page
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
-from posts.models import Group, Post, User, Follow
+from posts.models import Comment, Group, Post, User, Follow
 from posts.forms import PostForm
 from posts import constants
 
@@ -18,11 +18,25 @@ from posts import constants
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class URLTests(TestCase):
     """Тестирование view-функций."""
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.author = User.objects.create_user(username='author')
         cls.group = Group.objects.create(
             description='Описание тестовой группы для проверки view-функций.',
@@ -33,6 +47,7 @@ class URLTests(TestCase):
             author=cls.author,
             group=cls.group,
             text='Текст для тестового поста при проверке.',
+            image=uploaded,
         )
 
         cls.REVERSES = (
@@ -76,6 +91,27 @@ class URLTests(TestCase):
         self.authorized_client.force_login(self.author)
         cache.clear()
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def check_posts_attributes(self, posts):
+        for post in posts:
+            self.assertEqual(post.author, self.author)
+            self.assertEqual(post.group, self.group)
+            self.assertEqual(post.id, self.post.id)
+            self.assertEqual(post.text, self.post.text)
+            self.assertEqual(post.image, self.post.image)
+
+    def check_post_attributes(self, post):
+        self.assertEqual(post, self.post)
+        self.assertEqual(post.author, self.author)
+        self.assertEqual(post.group, self.group)
+        self.assertEqual(post.id, self.post.id)
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.image, self.post.image)
+
     def test_reverses(self):
         """Тестирование реверсов."""
         for reverse_name in self.REVERSES:
@@ -88,11 +124,7 @@ class URLTests(TestCase):
         response = self.authorized_client.get(reverse('posts:index'))
         posts = response.context['page_obj']
         self.assertIsInstance(posts, Page)
-        for post in posts:
-            self.assertEqual(post.author, self.author)
-            self.assertEqual(post.group, self.group)
-            self.assertEqual(post.id, self.post.id)
-            self.assertEqual(post.text, self.post.text)
+        self.check_posts_attributes(posts)
 
     def test_group_posts_context(self):
         """Тестирование содержимого словаря context в group_posts."""
@@ -103,11 +135,7 @@ class URLTests(TestCase):
         )
         posts = response.context['page_obj']
         group = response.context['group']
-        for post in posts:
-            self.assertEqual(post.author, self.author)
-            self.assertEqual(post.group, self.group)
-            self.assertEqual(post.id, self.post.id)
-            self.assertEqual(post.text, self.post.text)
+        self.check_posts_attributes(posts)
         self.assertEqual(group, self.group)
 
     def test_profile_context(self):
@@ -119,12 +147,10 @@ class URLTests(TestCase):
         )
         posts = response.context['page_obj']
         author = response.context['author']
-        for post in posts:
-            self.assertEqual(post.author, self.author)
-            self.assertEqual(post.group, self.group)
-            self.assertEqual(post.id, self.post.id)
-            self.assertEqual(post.text, self.post.text)
+        following = response.context['following']
+        self.check_posts_attributes(posts)
         self.assertEqual(author, self.author)
+        self.assertIn(following, response.context)
 
     def test_post_detail_context(self):
         """Тестирование содержимого словаря context в post_detail."""
@@ -134,11 +160,10 @@ class URLTests(TestCase):
             )
         )
         post = response.context['post']
-        self.assertEqual(post, self.post)
-        self.assertEqual(post.author, self.author)
-        self.assertEqual(post.group, self.group)
-        self.assertEqual(post.id, self.post.id)
-        self.assertEqual(post.text, self.post.text)
+        response_comments = response.context['comments']
+        post_comments = Comment.objects.filter(post=self.post.id)
+        self.assertQuerysetEqual(response_comments, post_comments)
+        self.check_post_attributes(post)
 
     def test_post_edit_context(self):
         """Тестирование содержимого словаря context в post_edit."""
@@ -150,11 +175,7 @@ class URLTests(TestCase):
         edited_post = response.context['post']
         edited_post_form = response.context['form']
         edited_post_is_edit = response.context['is_edit']
-        self.assertEqual(edited_post, self.post)
-        self.assertEqual(edited_post.author, self.author)
-        self.assertEqual(edited_post.group, self.group)
-        self.assertEqual(edited_post.id, self.post.id)
-        self.assertEqual(edited_post.text, self.post.text)
+        self.check_post_attributes(edited_post)
         self.assertIsInstance(edited_post_form, PostForm)
         self.assertTrue(edited_post_is_edit)
 
@@ -224,70 +245,6 @@ class URLTests(TestCase):
         self.assertNotEqual(response_3.content, response_1.content)
 
 
-@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-class ImageTest(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=small_gif,
-            content_type='image/gif'
-        )
-        cls.author = User.objects.create_user(username='author')
-        cls.group = Group.objects.create(
-            description='Описание тестовой группы для проверки картинок.',
-            slug='test_slug',
-            title='Тестовая группа для проверки картинок'
-        )
-        cls.post = Post.objects.create(
-            author=cls.author,
-            group=cls.group,
-            text='Текст тестового поста с картинкой.',
-            image=uploaded,
-        )
-        cls.ULRS = {
-            reverse('posts:index'),
-            reverse(
-                'posts:group_posts', kwargs={'slug': (cls.group.slug)}
-            ),
-            reverse(
-                'posts:profile', kwargs={'username': (cls.author.username)}
-            ),
-        }
-
-    def setUp(self):
-        cache.clear()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
-    def test_image_in_context(self):
-        """Проверка наличия картинки в словаре context"""
-        for url in self.ULRS:
-            with self.subTest(reverse=url):
-                response = self.client.get(url)
-                posts = response.context['page_obj']
-                self.assertIsInstance(posts, Page)
-
-    def test_image_on_post_details_page(self):
-        """Проверка наличия картинки в словаре context на странице поста"""
-        url = reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
-        response = self.client.get(url)
-        post = response.context['post']
-        self.assertEqual(post, self.post)
-
-
 class PaginatorViewsTest(URLTests):
     """Тестирование пагинатора."""
     def test_paginator(self):
@@ -330,55 +287,72 @@ class PaginatorViewsTest(URLTests):
 
 
 class FollowTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user_author = (User.objects.create(username='author'))
+        cls.user_follower = (User.objects.create(username='follower'))
+        cls.user_unfollower = (User.objects.create(username='unfollower'))
+        cls.post = Post.objects.create(
+            author=cls.user_author,
+            text='Пост для тестирования подписки'
+        )
+
     def setUp(self):
         self.authorized_client_author = Client()
         self.authorized_client_follower = Client()
         self.authorized_client_unfollower = Client()
-        self.user_author = (User.objects.create(username='author'))
-        self.user_follower = (User.objects.create(username='follower'))
-        self.user_unfollower = (User.objects.create(username='unfollower'))
-        self.post = Post.objects.create(
-            author=self.user_author,
-            text='Пост для тестирования подписки'
-        )
         self.authorized_client_author.force_login(self.user_author)
         self.authorized_client_follower.force_login(self.user_follower)
         self.authorized_client_unfollower.force_login(self.user_unfollower)
 
     def test_follow(self):
         """Тестирование подписки"""
+        following = Follow.objects.count()
         self.authorized_client_follower.get(
             reverse(
                 'posts:profile_follow',
                 kwargs={'username': self.user_author.username}
             )
         )
-        self.assertEqual(Follow.objects.count(), 1)
+        self.assertEqual(Follow.objects.count(), following + 1)
 
     def test_unfollow(self):
         """Тестирование отписки"""
+        following = Follow.objects.count()
         self.authorized_client_follower.get(
             reverse(
                 'posts:profile_unfollow',
                 kwargs={'username': self.user_author.username}
             )
         )
-        self.assertEqual(Follow.objects.count(), 0)
+        following_after_unfollow = Follow.objects.count()
+        if following_after_unfollow > 0:
+            following_after_unfollow = following - 1
+        following_after_unfollow = 0
+        self.assertEqual(Follow.objects.count(), following_after_unfollow)
 
-    def test_new_post_displays_correctly_for_any_user(self):
+    def test_new_post_displays_correctly_for_authorized_user(self):
+        """Тестирование появления нового поста на странице подписчика"""
+        Follow.objects.create(
+            author=self.user_author,
+            user=self.user_follower
+        )
+        response = self.authorized_client_follower.get(
+            reverse('posts:follow_index')
+        )
+        self.assertContains(response, self.post)
+
+    def test_new_post_does_not_display_on_nonauthorized_page(self):
         """
-        Тестирование появления нового поста на странице подписчика и
-        отсутствие на странице не подписанного пользователя
+        Тестирование отсутствия нового поста на странице неавторизованного
+        пользователя
         """
         Follow.objects.create(
             author=self.user_author,
             user=self.user_follower
         )
-        response_1 = self.authorized_client_follower.get(
+        response = self.authorized_client_unfollower.get(
             reverse('posts:follow_index')
         )
-        response_2 = self.authorized_client_unfollower.get(
-            reverse('posts:follow_index')
-        )
-        self.assertContains(response_1, self.post.text)
-        self.assertNotContains(response_2, self.post.text)
+        self.assertNotContains(response, self.post)

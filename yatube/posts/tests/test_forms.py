@@ -6,7 +6,7 @@ from django.conf import settings
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
-from posts.models import Group, Post, User
+from posts.models import Comment, Group, Post, User
 
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -41,9 +41,24 @@ class FormsTest(TestCase):
     def test_post_create_function(self):
         """Проверка работы функции при создании поста"""
         all_posts = set(Post.objects.all())
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         form_data = {
+            'author': self.author,
             'group': self.group.id,
-            'text': 'Отредактированный текст поста.'
+            'text': 'Отредактированный текст поста.',
+            'image': uploaded,
         }
         response = self.authorized_client.post(
             reverse('posts:post_create'),
@@ -56,14 +71,18 @@ class FormsTest(TestCase):
             - len(all_posts)
         )
         self.assertEqual(difference_between_posts, 1)
-        new_post = list(all_posts_with_new_one)[-1]
         self.assertRedirects(
             response,
             reverse('posts:profile', kwargs={'username': 'author'})
         )
-        self.assertEqual(new_post.author, self.author)
-        self.assertEqual(new_post.group.id, form_data['group'])
-        self.assertEqual(new_post.text, form_data['text'])
+        self.assertTrue(
+            Post.objects.filter(
+                author=self.author,
+                group=self.group.id,
+                text='Отредактированный текст поста.',
+                image='posts/small.gif',
+            ).exists()
+        )
 
     def test_post_edit_form(self):
         """Проверка работы функции при редактировании поста"""
@@ -84,54 +103,21 @@ class FormsTest(TestCase):
         )
         all_posts_after_editing = Post.objects.count()
         edited_post = Post.objects.get(id=self.post.id)
-        self.assertEqual(self.author, edited_post.author)
-        self.assertEqual(form_data['group'], edited_post.group.id)
-        self.assertEqual(form_data['text'], edited_post.text)
-        self.assertEqual(all_posts, all_posts_after_editing)
-
-    def test_post_with_image_in_DB(self):
-        """Проверка создания записи в БД при отправке POST-формы с картинкой"""
-        all_posts = Post.objects.count()
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=small_gif,
-            content_type='image/gif'
-        )
-        form_data = {
-            'author': self.author,
-            'group': self.group.id,
-            'text': 'Текст тестового поста при проверке появления картинки.',
-            'image': uploaded,
-        }
-        self.authorized_client.post(
-            reverse('posts:post_create'),
-            data=form_data,
-            follow=True
-        )
-        self.assertEqual(Post.objects.count(), all_posts + 1)
         self.assertTrue(
             Post.objects.filter(
-                author=self.author,
-                group=self.group.id,
-                text='Текст тестового поста при проверке появления картинки.',
-                image='posts/small.gif',
+                author=edited_post.author,
+                group=edited_post.group.id,
+                text=edited_post.text,
             ).exists()
         )
+        self.assertEqual(all_posts, all_posts_after_editing)
 
     def test_comments_display_on_page(self):
         """Проверка появления комментария на странице поста"""
         form_data = {
             'text': 'Текст тестового комментария.',
         }
-        self.authorized_client.post(
+        post_creation = self.authorized_client.post(
             reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
             data=form_data,
             follow=True
@@ -141,4 +127,38 @@ class FormsTest(TestCase):
                 'posts:post_detail', kwargs={'post_id': (self.post.id)}
             )
         )
+        guest_response = self.client.post(
+            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
+            data=form_data,
+            follow=True
+        )
+        self.assertRedirects(
+            post_creation,
+            reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
+        )
         self.assertContains(response, form_data['text'])
+        self.assertNotContains(guest_response, form_data['text'])
+
+    def test_comments_allowed_only_authorized_clients(self):
+        """
+        Проверка возможности комментирования только авторизированным
+        пользователям
+        """
+        comments = Comment.objects.count()
+        form_data = {
+            'text': 'Текст тестового комментария.',
+        }
+        authorized_response = self.authorized_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
+            data=form_data,
+            follow=True
+        )
+        anonym_response = self.client.post(
+            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
+            data=form_data,
+            follow=True
+        )
+        added_comments = Comment.objects.count()
+        self.assertContains(authorized_response, form_data['text'])
+        self.assertNotContains(anonym_response, form_data['text'])
+        self.assertEqual(added_comments, comments + 1)

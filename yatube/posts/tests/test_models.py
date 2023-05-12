@@ -21,19 +21,21 @@ class TestModels(TestCase):
             text='Текст для тестового поста.',
         )
 
-    def test_group_model(self):
-        """Проверка метода __str__ для Group."""
-        self.assertEqual(str(self.group), self.group.title)
-
-    def test_post_str_method(self):
-        """Проверка метода __str__ для Post."""
-        self.assertEqual(str(self.post), self.post.text[:POST_LIMIT])
+    def test_str_method_for_post_and_group_models(self):
+        """Проверка метода __str__ для Post и Group."""
+        data = {
+            self.group: self.group.title,
+            self.post: self.post.text[:POST_LIMIT],
+        }
+        for value, expected in data.items():
+            with self.subTest(value=value):
+                self.assertEqual(str(value), expected)
 
     def test_post_verbose_name(self):
         """Проверка verbose_name в Post."""
         fields_verbose_name = {
             'text': 'текст',
-            'pub_date': 'дата публикации',
+            'created': 'дата создания',
             'author': 'автор',
             'group': 'группа',
         }
@@ -45,7 +47,6 @@ class TestModels(TestCase):
     def test_post_help_text(self):
         """Проверка help_text в Post."""
         fields_help_text = {
-            'pub_date': 'Введите текст поста',
             'group': 'Группа, к которой будет относиться пост'
         }
         for value, expected in fields_help_text.items():
