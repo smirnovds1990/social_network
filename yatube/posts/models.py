@@ -18,12 +18,6 @@ class Group(models.Model):
 
 class Post(CreatedModel):
     text = models.TextField(verbose_name='текст')
-    # pub_date = models.DateTimeField(
-    #     auto_now_add=True,
-    #     verbose_name='дата публикации',
-    #     help_text='Введите текст поста',
-    #     db_index=True
-    # )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -72,7 +66,7 @@ class Comment(CreatedModel):
     class Meta:
         ordering = ['-created']
         verbose_name = 'Комментарий'
-        verbose_name_plural = 'КОмментарии'
+        verbose_name_plural = 'Комментарии'
 
 
 class Follow(models.Model):
@@ -86,3 +80,10 @@ class Follow(models.Model):
         on_delete=models.CASCADE,
         related_name='following'
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique')
+        ]
