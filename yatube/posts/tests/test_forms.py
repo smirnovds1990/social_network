@@ -55,7 +55,6 @@ class FormsTest(TestCase):
             content_type='image/gif'
         )
         form_data = {
-            'author': self.author,
             'group': self.group.id,
             'text': 'Отредактированный текст поста.',
             'image': uploaded,
@@ -79,7 +78,7 @@ class FormsTest(TestCase):
             Post.objects.filter(
                 author=self.author,
                 group=self.group.id,
-                text='Отредактированный текст поста.',
+                text=form_data['text'],
                 image='posts/small.gif',
             ).exists()
         )
@@ -102,42 +101,38 @@ class FormsTest(TestCase):
             follow=True
         )
         all_posts_after_editing = Post.objects.count()
-        edited_post = Post.objects.get(id=self.post.id)
         self.assertTrue(
             Post.objects.filter(
-                author=edited_post.author,
-                group=edited_post.group.id,
-                text=edited_post.text,
+                author=self.author,
+                group=form_data['group'],
+                text=form_data['text'],
+                id=self.post.id,
             ).exists()
         )
         self.assertEqual(all_posts, all_posts_after_editing)
 
     def test_comments_display_on_page(self):
         """Проверка появления комментария на странице поста"""
+        comments = Comment.objects.count()
         form_data = {
             'text': 'Текст тестового комментария.',
         }
-        post_creation = self.authorized_client.post(
+        comment_creation = self.authorized_client.post(
             reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
             data=form_data,
             follow=True
         )
-        response = self.authorized_client.get(
-            reverse(
-                'posts:post_detail', kwargs={'post_id': (self.post.id)}
-            )
-        )
-        guest_response = self.client.post(
-            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
-            data=form_data,
-            follow=True
-        )
+        comments_with_new_one = Comment.objects.count()
+        self.assertEqual(comments_with_new_one, comments + 1)
         self.assertRedirects(
-            post_creation,
+            comment_creation,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
-        self.assertContains(response, form_data['text'])
-        self.assertNotContains(guest_response, form_data['text'])
+        self.assertTrue(
+            Comment.objects.filter(
+                text=form_data['text']
+            ).exists()
+        )
 
     def test_comments_allowed_only_authorized_clients(self):
         """
@@ -148,17 +143,11 @@ class FormsTest(TestCase):
         form_data = {
             'text': 'Текст тестового комментария.',
         }
-        authorized_response = self.authorized_client.post(
-            reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
-            data=form_data,
-            follow=True
-        )
         anonym_response = self.client.post(
             reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
             data=form_data,
             follow=True
         )
         added_comments = Comment.objects.count()
-        self.assertContains(authorized_response, form_data['text'])
         self.assertNotContains(anonym_response, form_data['text'])
-        self.assertEqual(added_comments, comments + 1)
+        self.assertEqual(added_comments, comments)
