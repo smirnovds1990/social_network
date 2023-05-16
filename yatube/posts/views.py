@@ -33,12 +33,15 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    posts = Post.objects.filter(author=author)
+    posts = author.posts.all()
     page_obj = paginator_func(request, posts)
     template = 'posts/profile.html'
     following = False
     if request.user.is_authenticated:
-        following = True
+        following = Follow.objects.filter(
+            user=request.user,
+            author=author
+        ).exists()
     context = {
         'author': author,
         'page_obj': page_obj,
@@ -118,17 +121,15 @@ def follow_index(request):
 
 @login_required
 def profile_follow(request, username):
-    user = request.user
-    author = User.objects.get(username=username)
-    is_follower = Follow.objects.filter(user=user, author=author)
-    if user != author and not is_follower.exists():
-        Follow.objects.create(user=user, author=author)
+    author = get_object_or_404(User, username=username)
+    follower = Follow.objects.filter(user=request.user, author=author)
+    if request.user != author and not follower.exists():
+        Follow.objects.create(user=request.user, author=author)
     return redirect(reverse('posts:profile', kwargs={'username': username}))
 
 
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    if Follow.objects.filter(user=request.user, author=author).exists():
-        Follow.objects.filter(user=request.user, author=author).delete()
+    Follow.objects.filter(user=request.user, author=author).delete()
     return redirect(reverse('posts:profile', kwargs={'username': author}))

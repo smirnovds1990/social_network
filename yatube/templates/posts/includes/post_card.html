@@ -2,7 +2,9 @@
 <article>
   <ul>
       <li>
-      Автор: {{ post.author.get_full_name }}
+        <a href="{% url 'posts:profile' username=post.author.username %}">
+        Автор: {{ post.author.get_full_name }}
+        </a>
       </li>
       <li>
       Дата публикации: {{ post.created|date:"d E Y" }}

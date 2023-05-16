@@ -96,14 +96,6 @@ class URLTests(TestCase):
         super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
-    def check_posts_attributes(self, posts):
-        for post in posts:
-            self.assertEqual(post.author, self.author)
-            self.assertEqual(post.group, self.group)
-            self.assertEqual(post.id, self.post.id)
-            self.assertEqual(post.text, self.post.text)
-            self.assertEqual(post.image, self.post.image)
-
     def check_post_attributes(self, post):
         self.assertEqual(post, self.post)
         self.assertEqual(post.author, self.author)
@@ -123,8 +115,9 @@ class URLTests(TestCase):
         """Тестирование содержимого словаря context в index."""
         response = self.authorized_client.get(reverse('posts:index'))
         posts = response.context['page_obj']
+        one_post = response.context['page_obj'][0]
         self.assertIsInstance(posts, Page)
-        self.check_posts_attributes(posts)
+        self.check_post_attributes(one_post)
 
     def test_group_posts_context(self):
         """Тестирование содержимого словаря context в group_posts."""
@@ -133,9 +126,9 @@ class URLTests(TestCase):
                 'posts:group_posts', kwargs={'slug': (self.group.slug)}
             )
         )
-        posts = response.context['page_obj']
+        one_post = response.context['page_obj'][0]
         group = response.context['group']
-        self.check_posts_attributes(posts)
+        self.check_post_attributes(one_post)
         self.assertEqual(group, self.group)
 
     def test_profile_context(self):
@@ -145,10 +138,10 @@ class URLTests(TestCase):
                 'posts:profile', kwargs={'username': (self.author.username)}
             )
         )
-        posts = response.context['page_obj']
+        one_post = response.context['page_obj'][0]
         author = response.context['author']
         following = response.context['following']
-        self.check_posts_attributes(posts)
+        self.check_post_attributes(one_post)
         self.assertEqual(author, self.author)
         self.assertIn(following, response.context)
 
@@ -308,29 +301,37 @@ class FollowTests(TestCase):
 
     def test_follow(self):
         """Тестирование подписки"""
-        following = Follow.objects.count()
+        following = Follow.objects.filter(
+            user=self.user_follower,
+            author=self.user_author
+        )
+        self.assertFalse(following.exists())
         self.authorized_client_follower.get(
             reverse(
                 'posts:profile_follow',
                 kwargs={'username': self.user_author.username}
             )
         )
-        self.assertEqual(Follow.objects.count(), following + 1)
+        self.assertTrue(following.exists())
 
     def test_unfollow(self):
         """Тестирование отписки"""
-        following = Follow.objects.count()
+        Follow.objects.create(
+            user=self.user_follower,
+            author=self.user_author
+        )
+        following = Follow.objects.filter(
+            user=self.user_follower,
+            author=self.user_author
+        )
+        self.assertTrue(following.exists())
         self.authorized_client_follower.get(
             reverse(
                 'posts:profile_unfollow',
                 kwargs={'username': self.user_author.username}
             )
         )
-        following_after_unfollow = Follow.objects.count()
-        if following_after_unfollow > 0:
-            following_after_unfollow = following - 1
-        following_after_unfollow = 0
-        self.assertEqual(Follow.objects.count(), following_after_unfollow)
+        self.assertFalse(following.exists())
 
     def test_new_post_displays_correctly_for_authorized_user(self):
         """Тестирование появления нового поста на странице подписчика"""

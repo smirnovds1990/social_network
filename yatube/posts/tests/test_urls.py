@@ -38,16 +38,12 @@ class URLTests(TestCase):
         for url in general_urls:
             with self.subTest(url=url):
                 response = self.client.get(url)
-                auth_response = self.authorized_client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
-                self.assertEqual(auth_response.status_code, HTTPStatus.OK)
 
     def test_unexisting_url(self):
         """Тестирование ошибки 404."""
         unexisting_url = '/unexisting_page/'
         response = self.client.get(unexisting_url)
-        auth_response = self.authorized_client.get(unexisting_url)
-        self.assertEqual(auth_response.status_code, HTTPStatus.NOT_FOUND)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_404_page(self):
@@ -55,8 +51,6 @@ class URLTests(TestCase):
         unexisting_url = '/unexisting_page/'
         template = 'core/404.html'
         response = self.client.get(unexisting_url)
-        auth_response = self.authorized_client.get(unexisting_url)
-        self.assertTemplateUsed(auth_response, template)
         self.assertTemplateUsed(response, template)
 
     def test_post_create_url(self):

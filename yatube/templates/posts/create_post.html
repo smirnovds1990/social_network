@@ -19,8 +19,20 @@
           {% endif %}
         </div>
         <div class="card-body">
-          {% include 'posts/includes/form_errors.html' %}
-          {% include 'posts/includes/form_fields.html' %}
+          {% include 'includes/form_errors.html' %}
+          <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          {% include 'includes/form_fields.html' %}
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary">
+                {% if is_edit %}
+                  Сохранить
+                {% else %}
+                  Добавить
+                {% endif %}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
