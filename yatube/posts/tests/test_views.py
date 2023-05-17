@@ -11,7 +11,7 @@ from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
 from posts.models import Comment, Group, Post, User, Follow
-from posts.forms import PostForm
+from posts.forms import PostForm, CommentForm
 from posts import constants
 
 
@@ -154,7 +154,9 @@ class URLTests(TestCase):
         )
         post = response.context['post']
         response_comments = response.context['comments']
+        form = response.context['form']
         post_comments = Comment.objects.filter(post=self.post.id)
+        self.assertIsInstance(form, CommentForm)
         self.assertQuerysetEqual(response_comments, post_comments)
         self.check_post_attributes(post)
 
@@ -342,7 +344,8 @@ class FollowTests(TestCase):
         response = self.authorized_client_follower.get(
             reverse('posts:follow_index')
         )
-        self.assertContains(response, self.post)
+        posts = response.context['page_obj']
+        self.assertIn(self.post, posts)
 
     def test_new_post_does_not_display_on_nonauthorized_page(self):
         """
@@ -356,4 +359,5 @@ class FollowTests(TestCase):
         response = self.authorized_client_unfollower.get(
             reverse('posts:follow_index')
         )
-        self.assertNotContains(response, self.post)
+        posts = response.context['page_obj']
+        self.assertNotIn(self.post, posts)

@@ -113,7 +113,7 @@ class FormsTest(TestCase):
 
     def test_comments_display_on_page(self):
         """Проверка появления комментария на странице поста"""
-        comments = Comment.objects.count()
+        comments_quantity = Comment.objects.count()
         form_data = {
             'text': 'Текст тестового комментария.',
         }
@@ -123,14 +123,16 @@ class FormsTest(TestCase):
             follow=True
         )
         comments_with_new_one = Comment.objects.count()
-        self.assertEqual(comments_with_new_one, comments + 1)
+        self.assertEqual(comments_with_new_one, comments_quantity + 1)
         self.assertRedirects(
             comment_creation,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
         self.assertTrue(
             Comment.objects.filter(
-                text=form_data['text']
+                text=form_data['text'],
+                author=self.author,
+                post=self.post,
             ).exists()
         )
 
@@ -139,15 +141,14 @@ class FormsTest(TestCase):
         Проверка возможности комментирования только авторизированным
         пользователям
         """
-        comments = Comment.objects.count()
+        comments_quantity = Comment.objects.count()
         form_data = {
             'text': 'Текст тестового комментария.',
         }
-        anonym_response = self.client.post(
+        self.client.post(
             reverse('posts:add_comment', kwargs={'post_id': (self.post.id)}),
             data=form_data,
             follow=True
         )
         added_comments = Comment.objects.count()
-        self.assertNotContains(anonym_response, form_data['text'])
-        self.assertEqual(added_comments, comments)
+        self.assertEqual(added_comments, comments_quantity)
