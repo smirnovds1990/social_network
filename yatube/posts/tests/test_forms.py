@@ -132,7 +132,7 @@ class FormsTest(TestCase):
             Comment.objects.filter(
                 text=form_data['text'],
                 author=self.author,
-                post=self.post,
+                post_id=self.post.id,
             ).exists()
         )
 
