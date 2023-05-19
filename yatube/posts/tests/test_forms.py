@@ -124,10 +124,10 @@ class FormsTest(TestCase):
         )
         comments_with_new_one = Comment.objects.count()
         created_comment = Comment.objects.get(
-                text=form_data['text'],
-                author=self.author,
-                post_id=self.post.id,
-            )
+            text=form_data['text'],
+            author=self.author,
+            post_id=self.post.id,
+        )
         last_comment = Comment.objects.latest('id')
         self.assertEqual(comments_with_new_one, comments_quantity + 1)
         self.assertRedirects(
