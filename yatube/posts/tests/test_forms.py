@@ -123,18 +123,18 @@ class FormsTest(TestCase):
             follow=True
         )
         comments_with_new_one = Comment.objects.count()
+        created_comment = Comment.objects.get(
+                text=form_data['text'],
+                author=self.author,
+                post_id=self.post.id,
+            )
+        last_comment = Comment.objects.latest('id')
         self.assertEqual(comments_with_new_one, comments_quantity + 1)
         self.assertRedirects(
             comment_creation,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
-        self.assertTrue(
-            Comment.objects.filter(
-                text=form_data['text'],
-                author=self.author,
-                post_id=self.post.id,
-            ).exists()
-        )
+        self.assertEqual(created_comment, last_comment)
 
     def test_comments_allowed_only_authorized_clients(self):
         """
