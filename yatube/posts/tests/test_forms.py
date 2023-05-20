@@ -113,7 +113,7 @@ class FormsTest(TestCase):
 
     def test_comments_display_on_page(self):
         """Проверка появления комментария на странице поста"""
-        comments_quantity = Comment.objects.count()
+        all_comments = set(Comment.objects.all())
         form_data = {
             'text': 'Текст тестового комментария.',
         }
@@ -122,19 +122,22 @@ class FormsTest(TestCase):
             data=form_data,
             follow=True
         )
-        comments_with_new_one = Comment.objects.count()
-        created_comment = Comment.objects.get(
-            text=form_data['text'],
-            author=self.author,
-            post_id=self.post.id,
+        comments_with_new_one = set(Comment.objects.all())
+        difference_between_comments = (
+            len(comments_with_new_one) - len(all_comments)
         )
-        last_comment = Comment.objects.latest('id')
-        self.assertEqual(comments_with_new_one, comments_quantity + 1)
+        self.assertEqual(difference_between_comments, 1)
         self.assertRedirects(
             comment_creation,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
-        self.assertEqual(created_comment, last_comment)
+        self.assertTrue(
+            Comment.objects.filter(
+                author=self.author,
+                text=form_data['text'],
+                post=self.post.id,
+            ).exists()
+        )
 
     def test_comments_allowed_only_authorized_clients(self):
         """
