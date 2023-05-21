@@ -133,7 +133,7 @@ class FormsTest(TestCase):
             self.assertEqual(new_comment.author, self.author)
             self.assertEqual(new_comment.post, self.post)
             self.assertEqual(new_comment.text, form_data['text'])
-        
+
     def test_comments_allowed_only_authorized_clients(self):
         """
         Проверка возможности комментирования только авторизированным
