@@ -123,22 +123,17 @@ class FormsTest(TestCase):
             follow=True
         )
         comments_with_new_one = set(Comment.objects.all())
-        difference_between_comments = (
-            len(comments_with_new_one) - len(all_comments)
-        )
-        self.assertEqual(difference_between_comments, 1)
+        difference_between_comments = comments_with_new_one - all_comments
+        self.assertEqual(len(difference_between_comments), 1)
         self.assertRedirects(
             comment_creation,
             reverse('posts:post_detail', kwargs={'post_id': (self.post.id)})
         )
-        self.assertTrue(
-            Comment.objects.filter(
-                author=self.author,
-                text=form_data['text'],
-                post=self.post.id,
-            ).exists()
-        )
-
+        for new_comment in difference_between_comments:
+            self.assertEqual(new_comment.author, self.author)
+            self.assertEqual(new_comment.post, self.post)
+            self.assertEqual(new_comment.text, form_data['text'])
+        
     def test_comments_allowed_only_authorized_clients(self):
         """
         Проверка возможности комментирования только авторизированным
